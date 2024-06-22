@@ -2,9 +2,9 @@ name: Publish Docker Image
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   # UTC+0 周日 的 16 点，即 UTC+8 周一 的 0 点。
-  #   - cron: "0 16 * * 0"
+  schedule:
+    # UTC+0 周日 的 16 点，即 UTC+8 周一 的 0 点。
+    - cron: "0 16 * * 0"
   # push:
   #   branches:
   #     - master
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -76,5 +76,49 @@ jobs:
           push: true
           tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
           labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
+          platforms: linux/amd64,linux/arm64,linux/ppc64le
+          # linux/arm/v7,linux/arm/v6,,linux/s390x
+
+      - name: Extract Docker metadata
+        id: metadata-alpine-nodejs-minimize
+        uses: docker/metadata-action@v5
+        with:
+          # 发布到 docker.io
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs-minimize
+          tags: |
+            type=raw,value=latest,enable=true
+            type=raw,value=alpine${{ env.ALPINE_LATEST_VERSION }},enable=true
+            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/alpine-nodejs-minimize
+          file: ./docker/alpine-nodejs-minimize/Dockerfile
+          push: true
+          tags: ${{ steps.metadata-alpine-nodejs-minimize.outputs.tags }}
+          labels: ${{ steps.metadata-alpine-nodejs-minimize.outputs.labels }}
+          platforms: linux/amd64,linux/arm64,linux/ppc64le
+          # linux/arm/v7,linux/arm/v6,,linux/s390x
+
+      - name: Extract Docker metadata
+        id: metadata-alpine-nodejs-mongodb-tools
+        uses: docker/metadata-action@v5
+        with:
+          # 发布到 docker.io
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs-mongodb-tools
+          tags: |
+            type=raw,value=latest,enable=true
+            type=raw,value=alpine${{ env.ALPINE_LATEST_VERSION }},enable=true
+            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/alpine-nodejs-mongodb-tools
+          file: ./docker/alpine-nodejs-mongodb-tools/Dockerfile
+          push: true
+          tags: ${{ steps.metadata-alpine-nodejs-mongodb-tools.outputs.tags }}
+          labels: ${{ steps.metadata-alpine-nodejs-mongodb-tools.outputs.labels }}
           platforms: linux/amd64,linux/arm64,linux/ppc64le
           # linux/arm/v7,linux/arm/v6,,linux/s390x
