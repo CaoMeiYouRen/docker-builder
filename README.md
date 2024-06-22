@@ -16,6 +16,11 @@
 
 > Docker 项目构建器
 
+## 当前构建版本
+
+<!-- DOCKER_START -->
+<!-- DOCKER_END -->
+
 ## 🏠 主页
 
 [https://github.com/CaoMeiYouRen/docker-builder#readme](https://github.com/CaoMeiYouRen/docker-builder#readme)

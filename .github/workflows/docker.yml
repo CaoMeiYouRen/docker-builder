@@ -1,0 +1,53 @@
+name: Publish Docker Image
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC+0 周日 的 16 点，即 UTC+8 周一 的 0 点。
+    - cron: "0 16 * * 0"
+  # push:
+  #   branches:
+  #     - master
+
+# 仅取消针对当前工作流正在进行的作业或运行
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Extract Docker metadata
+        id: metadata-alpine-nodejs
+        uses: docker/metadata-action@v5
+        with:
+          # 发布到 docker.io
+          images: |
+            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs
+          tags: |
+            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: ./docker/alpine-nodejs
+          file: ./docker/alpine-nodejs/Dockerfile
+          push: true
+          tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
+          labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
+          platforms: linux/amd64,linux/arm/v7,linux/arm64
