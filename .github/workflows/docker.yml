@@ -17,7 +17,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -75,4 +75,5 @@ jobs:
           push: true
           tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
           labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
-          platforms: linux/amd64,linux/arm/v7,linux/arm64
+          platforms: linux/amd64
+          # ,linux/arm64,linux/arm/v7,linux/arm/v6,linux/ppc64le,linux/s390x
