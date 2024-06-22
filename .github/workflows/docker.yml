@@ -17,37 +17,61 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Extract Docker metadata
-        id: metadata-alpine-nodejs
-        uses: docker/metadata-action@v5
+          version: "latest"
+      - name: Setup Node.js@lts environment
+        uses: actions/setup-node@v4
         with:
-          # 发布到 docker.io
-          images: |
-            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs
-          tags: |
-            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v5
+          node-version: "lts/*"
+          cache: "pnpm"
+      - name: Cache Dependency
+        uses: actions/cache@v4
         with:
-          context: ./docker/alpine-nodejs
-          file: ./docker/alpine-nodejs/Dockerfile
-          push: true
-          tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
-          labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
-          platforms: linux/amd64,linux/arm/v7,linux/arm64
+          path: |
+            ~/.npm
+            ~/.yarn
+            ~/.cache/pnpm
+            ~/cache
+            !~/cache/exclude
+            **/node_modules
+          key: pnpm-${{ runner.os }}-${{ hashFiles('package.json') }}
+          restore-keys: pnpm-${{ runner.os }}
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm run start:tsx
+      - run: echo "${{ env.ALPINE_LATEST_VERSION }}"
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v3
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v3
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      # - name: Extract Docker metadata
+      #   id: metadata-alpine-nodejs
+      #   uses: docker/metadata-action@v5
+      #   with:
+      #     # 发布到 docker.io
+      #     images: |
+      #       ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs
+      #     tags: |
+      #       type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
+      # - name: Build and push Docker images
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ./docker/alpine-nodejs
+      #     file: ./docker/alpine-nodejs/Dockerfile
+      #     push: true
+      #     tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
+      #     labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
+      #     platforms: linux/amd64,linux/arm/v7,linux/arm64
