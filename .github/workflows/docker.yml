@@ -65,6 +65,7 @@ jobs:
           images: |
             ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs
           tags: |
+            type=raw,value=latest,enable=true
             type=raw,value=alpine${{ env.ALPINE_LATEST_VERSION }},enable=true
             type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
       - name: Build and push Docker images
