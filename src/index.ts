@@ -29,23 +29,9 @@ async function getTagsByRssHub(sourceRepo: string) {
 
 const alpineTags = await getTagsByRssHub('library/alpine')
 
-const alpineLatestVersion = alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0)
+const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
 
-await $`echo "ALPINE_LATEST_VERSION=${alpineLatestVersion}" >> "$GITHUB_ENV"`
+const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
 
-// // 创建新的构建器实例
-// await $`docker buildx create --name mybuilder`
+await $`echo "ALPINE_LATEST_VERSION=${ALPINE_LATEST_VERSION}" >> "$GITHUB_ENV"`
 
-// // 切换到新的构建器实例
-// await $`docker buildx use mybuilder`
-
-// // 构建跨平台镜像
-// await $`docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t myimage:tag .`
-
-// // 推送跨平台镜像
-// await $`docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t myimage:tag --push .`
-
-// // 查看构建器信息
-// await $`docker buildx inspect --bootstrap`
-
-// await $`echo "{environment_variable_name}={value}" >> "$GITHUB_ENV"`
