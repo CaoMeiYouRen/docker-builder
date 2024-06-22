@@ -76,5 +76,5 @@ jobs:
           push: true
           tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
           labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
-          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x
-          # linux/arm/v7,linux/arm/v6,
+          platforms: linux/amd64,linux/arm64,linux/ppc64le
+          # linux/arm/v7,linux/arm/v6,,linux/s390x
