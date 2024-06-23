@@ -27,6 +27,16 @@ async function getTagsByRssHub(sourceRepo: string) {
     return tags
 }
 
+async function getPkgsVersion(name: string) {
+    const url = new URL(`https://rsshub.app/alpinelinux/pkgs/${name}`)
+    const rssUrl = url.toString()
+    const rssResp = await rssParser.parseURL(rssUrl)
+    // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
+    // version 20.13.1-r0
+    const versions = rssResp.items.map((item) => item.guid?.split('#')?.[1])
+    return versions
+}
+
 const alpineTags = await getTagsByRssHub('library/alpine')
 
 const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
@@ -34,4 +44,13 @@ const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e
 const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
 
 await $`echo "ALPINE_LATEST_VERSION=${ALPINE_LATEST_VERSION}" >> "$GITHUB_ENV"`
+await $`echo "ALPINE_MAJOR_VERSION=${alpineLatestVersion.major}" >> "$GITHUB_ENV"`
 
+const nodejsVersions = await getPkgsVersion('nodejs')
+
+const nodejsLatestVersion = semver.parse(nodejsVersions.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
+
+const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersion.minor}`
+
+await $`echo "NODEJS_LATEST_VERSION=${NODEJS_LATEST_VERSION}" >> "$GITHUB_ENV"`
+await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV"`
