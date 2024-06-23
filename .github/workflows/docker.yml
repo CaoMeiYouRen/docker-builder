@@ -47,7 +47,6 @@ jobs:
           restore-keys: pnpm-${{ runner.os }}
       - run: pnpm i --frozen-lockfile
       - run: pnpm run start:tsx
-      # - run: echo "${{ env.ALPINE_LATEST_VERSION }}"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -60,6 +59,7 @@ jobs:
       - name: Extract Docker metadata
         id: metadata-alpine-nodejs
         uses: docker/metadata-action@v5
+        if: ${{ env.HAS_UPDATE }}
         with:
           # 发布到 docker.io
           images: |
@@ -71,6 +71,7 @@ jobs:
             type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
+        if: ${{ env.HAS_UPDATE }}
         with:
           context: ./docker/alpine-nodejs
           file: ./docker/alpine-nodejs/Dockerfile
@@ -83,6 +84,7 @@ jobs:
       - name: Extract Docker metadata
         id: metadata-alpine-nodejs-minimize
         uses: docker/metadata-action@v5
+        if: ${{ env.HAS_UPDATE }}
         with:
           # 发布到 docker.io
           images: |
@@ -94,6 +96,7 @@ jobs:
             type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
+        if: ${{ env.HAS_UPDATE }}
         with:
           context: ./docker/alpine-nodejs-minimize
           file: ./docker/alpine-nodejs-minimize/Dockerfile
@@ -106,6 +109,7 @@ jobs:
       - name: Extract Docker metadata
         id: metadata-alpine-nodejs-mongodb-tools
         uses: docker/metadata-action@v5
+        if: ${{ env.HAS_UPDATE }}
         with:
           # 发布到 docker.io
           images: |
@@ -117,6 +121,7 @@ jobs:
             type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
+        if: ${{ env.HAS_UPDATE }}
         with:
           context: ./docker/alpine-nodejs-mongodb-tools
           file: ./docker/alpine-nodejs-mongodb-tools/Dockerfile

@@ -3,11 +3,14 @@ import { $ } from 'zx'
 import Parser from 'rss-parser'
 import fs from 'fs-extra'
 import semver from 'semver'
+import dayjs from 'dayjs'
 
 const rssParser = new Parser()
 
 const limit = parseInt(process.env.SYNC_LIMIT) || 5
-const filterTime = (parseInt(process.env.SYNC_FILTER_TIME) || 2) * 24 * 60 * 60
+// const filterTime = (parseInt(process.env.SYNC_FILTER_TIME) || 2) * 24 * 60 * 60
+
+let hasUpdate = false
 
 async function getTagsByRssHub(sourceRepo: string) {
     const search = new URLSearchParams({
@@ -20,6 +23,9 @@ async function getTagsByRssHub(sourceRepo: string) {
     const rssUrl = url.toString()
 
     const rssResp = await rssParser.parseURL(rssUrl)
+    if (dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 2) { // 更新时间在 2 天内
+        hasUpdate = true
+    }
     // guid library/alpine:latest@b26f5cb75a088e449b9dbbbad546a106
     // tag latest
     const tags = rssResp.items.map((item) => item.guid?.split('@')?.[0]?.split(':')?.[1])
@@ -37,6 +43,9 @@ async function getPkgsVersion(name: string) {
     url.search = search.toString()
     const rssUrl = url.toString()
     const rssResp = await rssParser.parseURL(rssUrl)
+    if (dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 2) { // 更新时间在 2 天内
+        hasUpdate = true
+    }
     // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
     // version 20.13.1-r0
     const versions = rssResp.items.map((item) => item.guid?.split('#')?.[1])
@@ -44,6 +53,8 @@ async function getPkgsVersion(name: string) {
 }
 
 const alpineTags = await getTagsByRssHub('library/alpine')
+
+await $`echo "HAS_UPDATE=${hasUpdate}" >> "$GITHUB_ENV"`
 
 const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
 
@@ -60,3 +71,4 @@ const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersio
 
 await $`echo "NODEJS_LATEST_VERSION=${NODEJS_LATEST_VERSION}" >> "$GITHUB_ENV"`
 await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV"`
+
