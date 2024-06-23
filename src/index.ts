@@ -11,7 +11,7 @@ const filterTime = (parseInt(process.env.SYNC_FILTER_TIME) || 2) * 24 * 60 * 60
 
 async function getTagsByRssHub(sourceRepo: string) {
     const search = new URLSearchParams({
-        filter_time: String(filterTime),
+        // filter_time: String(filterTime),
         limit: String(limit),
         filterout: '',
     })
@@ -28,7 +28,13 @@ async function getTagsByRssHub(sourceRepo: string) {
 }
 
 async function getPkgsVersion(name: string) {
+    const search = new URLSearchParams({
+        // filter_time: String(filterTime),
+        limit: String(limit),
+        filterout: '',
+    })
     const url = new URL(`https://rsshub.app/alpinelinux/pkgs/${name}`)
+    url.search = search.toString()
     const rssUrl = url.toString()
     const rssResp = await rssParser.parseURL(rssUrl)
     // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
