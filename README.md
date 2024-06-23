@@ -1,6 +1,6 @@
 <h1 align="center">docker-builder </h1>
 <p>
-  <img alt="Version" src="https://img.shields.io/github/package-json/v/docker-builder.svg" />
+  <img alt="Version" src="https://img.shields.io/github/package-json/v/CaoMeiYouRen/docker-builder.svg" />
   <img src="https://img.shields.io/badge/node-%3E%3D16-blue.svg" />
   <a href="https://github.com/CaoMeiYouRen/docker-builder#readme" target="_blank">
     <img alt="Documentation" src="https://img.shields.io/badge/documentation-yes-brightgreen.svg" />
