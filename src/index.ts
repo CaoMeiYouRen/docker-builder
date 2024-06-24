@@ -86,7 +86,7 @@ if (hasUpdate) {
     const rootDir = path.join(__dirname, '../docker')
     const projects = await fs.readdir(rootDir)
     const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
-    let dockerTags: string[]
+    const dockerTags: string[] = []
 
     projects.forEach((project) => {
         versions.forEach((version) => {
