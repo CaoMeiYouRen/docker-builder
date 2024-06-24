@@ -12,7 +12,8 @@ import timezone from 'dayjs/plugin/timezone'
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-const __dirname = fileURLToPath(import.meta.url)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const rssParser = new Parser()
 
@@ -82,7 +83,7 @@ await $`echo "NODEJS_LATEST_VERSION=${NODEJS_LATEST_VERSION}" >> "$GITHUB_ENV"`
 await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV"`
 
 if (hasUpdate) {
-    const rootDir = path.join(__dirname, '../docker/')
+    const rootDir = path.join(__dirname, '../docker')
     const projects = await fs.readdir(rootDir)
     const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
     let dockerTags: string[]
