@@ -1,9 +1,18 @@
 #!/usr/bin/env zx
+import path from 'path'
+import { fileURLToPath } from 'node:url'
 import { $ } from 'zx'
 import Parser from 'rss-parser'
 import fs from 'fs-extra'
 import semver from 'semver'
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const __dirname = fileURLToPath(import.meta.url)
 
 const rssParser = new Parser()
 
@@ -72,3 +81,21 @@ const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersio
 await $`echo "NODEJS_LATEST_VERSION=${NODEJS_LATEST_VERSION}" >> "$GITHUB_ENV"`
 await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV"`
 
+if (hasUpdate) {
+    const rootDir = path.join(__dirname, '../docker/')
+    const projects = await fs.readdir(rootDir)
+    const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
+    let dockerTags: string[]
+
+    projects.forEach((project) => {
+        versions.forEach((version) => {
+            dockerTags.push(`caomeiyouren/${project}:${version}`)
+        })
+    })
+
+    const text = `\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
+    const readme = await fs.readFile('README.md', 'utf-8')
+    const newReadme = readme.replace(/<!-- DOCKER_START -->([\s\S]*?)<!-- DOCKER_END -->/, `<!-- DOCKER_START -->\n${text}\n<!-- DOCKER_END -->`)
+    await fs.writeFile('README.md', newReadme)
+    console.log('更新 Docker Tags 成功')
+}
