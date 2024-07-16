@@ -64,8 +64,6 @@ async function getPkgsVersion(name: string) {
 
 const alpineTags = await getTagsByRssHub('library/alpine')
 
-await $`echo "HAS_UPDATE=${hasUpdate}" >> "$GITHUB_ENV"`
-
 const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
 
 const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
@@ -81,6 +79,8 @@ const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersio
 
 await $`echo "NODEJS_LATEST_VERSION=${NODEJS_LATEST_VERSION}" >> "$GITHUB_ENV"`
 await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV"`
+
+await $`echo "HAS_UPDATE=${hasUpdate}" >> "$GITHUB_ENV"`
 
 if (hasUpdate) {
     const rootDir = path.join(__dirname, '../docker')
