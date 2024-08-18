@@ -33,7 +33,7 @@ async function getTagsByRssHub(sourceRepo: string) {
     const rssUrl = url.toString()
 
     const rssResp = await rssParser.parseURL(rssUrl)
-    if (dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
+    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
         hasUpdate = true
     }
     // guid library/alpine:latest@b26f5cb75a088e449b9dbbbad546a106
@@ -53,7 +53,7 @@ async function getPkgsVersion(name: string) {
     url.search = search.toString()
     const rssUrl = url.toString()
     const rssResp = await rssParser.parseURL(rssUrl)
-    if (dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
+    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
         hasUpdate = true
     }
     // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
