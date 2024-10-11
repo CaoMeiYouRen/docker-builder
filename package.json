@@ -99,6 +99,7 @@
     "lodash-es": "^4.17.21",
     "log4js": "^6.9.1",
     "rss-parser": "^3.13.0",
+    "rsshub": "1.0.0-master.b6961b9",
     "semver": "^7.6.2",
     "tslib": "^2.6.3",
     "yaml": "^2.4.5",
