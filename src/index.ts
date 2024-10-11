@@ -8,15 +8,12 @@ import semver from 'semver'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import * as RSSHub from 'rsshub'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-await RSSHub.init({})
 
 const rssParser = new Parser()
 
@@ -31,8 +28,11 @@ async function getTagsByRssHub(sourceRepo: string) {
         limit: String(limit),
         filterout: '',
     })
-    const rssResp = await RSSHub.request(`/dockerhub/tag/${sourceRepo}?${search}`)
-    console.log(rssResp)
+    const url = new URL(`https://rsshub.app/dockerhub/tag/${sourceRepo}`)
+    url.search = search.toString()
+    const rssUrl = url.toString()
+
+    const rssResp = await rssParser.parseURL(rssUrl)
     if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
         hasUpdate = true
     }
@@ -49,8 +49,10 @@ async function getPkgsVersion(name: string) {
         limit: String(limit),
         filterout: '',
     })
-    const rssResp = await RSSHub.request(`/alpinelinux/pkgs/${name}?${search}`)
-    console.log(rssResp)
+    const url = new URL(`https://rsshub.app/alpinelinux/pkgs/${name}`)
+    url.search = search.toString()
+    const rssUrl = url.toString()
+    const rssResp = await rssParser.parseURL(rssUrl)
     if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
         hasUpdate = true
     }
