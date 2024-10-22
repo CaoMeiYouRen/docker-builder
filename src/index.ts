@@ -1,6 +1,7 @@
 #!/usr/bin/env zx
 import path from 'path'
 import { fileURLToPath } from 'node:url'
+import { exit } from 'node:process'
 import { $ } from 'zx'
 import Parser from 'rss-parser'
 import fs from 'fs-extra'
@@ -33,7 +34,7 @@ async function getTagsByRssHub(sourceRepo: string) {
     const rssUrl = url.toString()
 
     const rssResp = await rssParser.parseURL(rssUrl)
-    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
+    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
         hasUpdate = true
     }
     // guid library/alpine:latest@b26f5cb75a088e449b9dbbbad546a106
@@ -53,7 +54,7 @@ async function getPkgsVersion(name: string) {
     url.search = search.toString()
     const rssUrl = url.toString()
     const rssResp = await rssParser.parseURL(rssUrl)
-    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 7) { // 更新时间在 7 天内
+    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
         hasUpdate = true
     }
     // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
@@ -66,6 +67,11 @@ const alpineTags = await getTagsByRssHub('library/alpine')
 
 const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
 
+if (!alpineLatestVersion) {
+    console.error('获取 Alpine 最新版本失败')
+    exit(0)
+}
+
 const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
 
 await $`echo "ALPINE_LATEST_VERSION=${ALPINE_LATEST_VERSION}" >> "$GITHUB_ENV"`
@@ -74,6 +80,11 @@ await $`echo "ALPINE_MAJOR_VERSION=${alpineLatestVersion.major}" >> "$GITHUB_ENV
 const nodejsVersions = await getPkgsVersion('nodejs')
 
 const nodejsLatestVersion = semver.parse(nodejsVersions.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
+
+if (!nodejsLatestVersion) {
+    console.error('获取 Node.js 最新版本失败')
+    exit(0)
+}
 
 const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersion.minor}`
 
