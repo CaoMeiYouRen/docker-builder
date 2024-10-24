@@ -29,7 +29,7 @@ async function getTagsByRssHub(sourceRepo: string) {
         limit: String(limit),
         filterout: '',
     })
-    const url = new URL(`https://rsshub.app/dockerhub/tag/${sourceRepo}`)
+    const url = new URL(`https://rsshub.cmyr.dev/dockerhub/tag/${sourceRepo}`)
     url.search = search.toString()
     const rssUrl = url.toString()
 
@@ -50,7 +50,7 @@ async function getPkgsVersion(name: string) {
         limit: String(limit),
         filterout: '',
     })
-    const url = new URL(`https://rsshub.app/alpinelinux/pkgs/${name}`)
+    const url = new URL(`https://rsshub.cmyr.dev/alpinelinux/pkgs/${name}`)
     url.search = search.toString()
     const rssUrl = url.toString()
     const rssResp = await rssParser.parseURL(rssUrl)
