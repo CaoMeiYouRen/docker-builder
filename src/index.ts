@@ -23,6 +23,15 @@ const limit = parseInt(process.env.SYNC_LIMIT) || 5
 
 let hasUpdate = false
 
+async function getRss(url: string) {
+    return (await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
+            Accept: 'application/rss+xml',
+        },
+    })).text()
+}
+
 async function getTagsByRssHub(sourceRepo: string) {
     const search = new URLSearchParams({
         // filter_time: String(filterTime),
@@ -33,7 +42,7 @@ async function getTagsByRssHub(sourceRepo: string) {
     url.search = search.toString()
     const rssUrl = url.toString()
 
-    const rssResp = await rssParser.parseURL(rssUrl)
+    const rssResp = await rssParser.parseString(await getRss(rssUrl))
     if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
         hasUpdate = true
     }
@@ -53,7 +62,7 @@ async function getPkgsVersion(name: string) {
     const url = new URL(`https://rsshub.cmyr.dev/alpinelinux/pkgs/${name}`)
     url.search = search.toString()
     const rssUrl = url.toString()
-    const rssResp = await rssParser.parseURL(rssUrl)
+    const rssResp = await rssParser.parseString(await getRss(rssUrl))
     if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
         hasUpdate = true
     }
