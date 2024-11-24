@@ -23,15 +23,15 @@
 caomeiyouren/alpine-nodejs:latest
 caomeiyouren/alpine-nodejs:alpine3.20-node22.11
 caomeiyouren/alpine-nodejs:alpine3-node22
-caomeiyouren/alpine-nodejs:2024-11-18
+caomeiyouren/alpine-nodejs:2024-11-25
 caomeiyouren/alpine-nodejs-minimize:latest
 caomeiyouren/alpine-nodejs-minimize:alpine3.20-node22.11
 caomeiyouren/alpine-nodejs-minimize:alpine3-node22
-caomeiyouren/alpine-nodejs-minimize:2024-11-18
+caomeiyouren/alpine-nodejs-minimize:2024-11-25
 caomeiyouren/alpine-nodejs-mongodb-tools:latest
 caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.20-node22.11
 caomeiyouren/alpine-nodejs-mongodb-tools:alpine3-node22
-caomeiyouren/alpine-nodejs-mongodb-tools:2024-11-18
+caomeiyouren/alpine-nodejs-mongodb-tools:2024-11-25
 ```
 <!-- DOCKER_END -->
 
