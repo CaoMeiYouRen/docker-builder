@@ -21,17 +21,17 @@
 <!-- DOCKER_START -->
 ```
 caomeiyouren/alpine-nodejs:latest
-caomeiyouren/alpine-nodejs:alpine3.20-node22.11
+caomeiyouren/alpine-nodejs:alpine3.21-node22.11
 caomeiyouren/alpine-nodejs:alpine3-node22
-caomeiyouren/alpine-nodejs:2024-11-25
+caomeiyouren/alpine-nodejs:2024-12-09
 caomeiyouren/alpine-nodejs-minimize:latest
-caomeiyouren/alpine-nodejs-minimize:alpine3.20-node22.11
+caomeiyouren/alpine-nodejs-minimize:alpine3.21-node22.11
 caomeiyouren/alpine-nodejs-minimize:alpine3-node22
-caomeiyouren/alpine-nodejs-minimize:2024-11-25
+caomeiyouren/alpine-nodejs-minimize:2024-12-09
 caomeiyouren/alpine-nodejs-mongodb-tools:latest
-caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.20-node22.11
+caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.21-node22.11
 caomeiyouren/alpine-nodejs-mongodb-tools:alpine3-node22
-caomeiyouren/alpine-nodejs-mongodb-tools:2024-11-25
+caomeiyouren/alpine-nodejs-mongodb-tools:2024-12-09
 ```
 <!-- DOCKER_END -->
 
