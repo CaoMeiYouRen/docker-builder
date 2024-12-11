@@ -2,7 +2,7 @@
 import path from 'path'
 import { fileURLToPath } from 'node:url'
 import { exit } from 'node:process'
-import { $ } from 'zx'
+import { $, cd, within } from 'zx'
 import Parser from 'rss-parser'
 import fs from 'fs-extra'
 import semver from 'semver'
@@ -21,7 +21,32 @@ const rssParser = new Parser()
 const limit = parseInt(process.env.SYNC_LIMIT) || 5
 // const filterTime = (parseInt(process.env.SYNC_FILTER_TIME) || 2) * 24 * 60 * 60
 
+const DOCKER_USERNAME = process.env.DOCKER_USERNAME || ''
+
 let hasUpdate = false
+
+async function buildAndPushDockerImages(versions: string[]) {
+    const rootDir = path.join(__dirname, '../docker')
+    const projects = await fs.readdir(rootDir)
+    const dockerTags: string[] = []
+    const platform = process.env.DOCKER_PLATFORM || 'linux/amd64,linux/arm64,linux/ppc64le'
+    for await (const project of projects) {
+        const fullDir = path.join(rootDir, project)
+        const imageName = project
+        cd(fullDir)
+        await $`docker buildx build \
+            --push \
+            --platform ${platform} \
+            ${versions.map((version) => `-t ${DOCKER_USERNAME}/${imageName}:${version}`).join(' \\ \n')}
+            .`
+        versions.forEach((version) => {
+            dockerTags.push(`${DOCKER_USERNAME}/${imageName}:${version}`)
+        })
+        cd('..')
+    }
+
+    return dockerTags
+}
 
 async function getRss(url: string) {
     return (await fetch(url, {
@@ -103,16 +128,8 @@ await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV
 await $`echo "HAS_UPDATE=${hasUpdate}" >> "$GITHUB_ENV"`
 
 if (hasUpdate) {
-    const rootDir = path.join(__dirname, '../docker')
-    const projects = await fs.readdir(rootDir)
     const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
-    const dockerTags: string[] = []
-
-    projects.forEach((project) => {
-        versions.forEach((version) => {
-            dockerTags.push(`caomeiyouren/${project}:${version}`)
-        })
-    })
+    const dockerTags = await buildAndPushDockerImages(versions)
 
     const text = `\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
     const readme = await fs.readFile('README.md', 'utf-8')

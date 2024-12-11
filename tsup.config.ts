@@ -9,6 +9,6 @@ export default defineConfig({
     dts: true,
     minify: false,
     // external: [],
-    // noExternal: [/(.*)/], // 将依赖打包到一个文件中
+    noExternal: ['dayjs'], // /(.*)/ 将依赖打包到一个文件中
     // bundle: true,
 })
