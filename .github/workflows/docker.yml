@@ -33,18 +33,6 @@ jobs:
         with:
           node-version: "lts/*"
           cache: "pnpm"
-      - name: Cache Dependency
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            ~/.yarn
-            ~/.cache/pnpm
-            ~/cache
-            !~/cache/exclude
-            **/node_modules
-          key: pnpm-${{ runner.os }}-${{ hashFiles('package.json') }}
-          restore-keys: pnpm-${{ runner.os }}
       - run: pnpm i --frozen-lockfile
       - run: pnpm run start:tsx
       - name: Set up QEMU
@@ -72,7 +60,7 @@ jobs:
               -t ${{ secrets.DOCKER_USERNAME }}/$image_name:latest \
               -t ${{ secrets.DOCKER_USERNAME }}/$image_name:alpine${{ env.ALPINE_LATEST_VERSION }}-node${{ env.NODEJS_LATEST_VERSION }} \
               -t ${{ secrets.DOCKER_USERNAME }}/$image_name:alpine${{ env.ALPINE_MAJOR_VERSION }}-node${{ env.NODEJS_MAJOR_VERSION }} \
-              -t ${{ secrets.DOCKER_USERNAME }}/$image_name:$(date '+%Y-%m-%d' -d 'Asia/Shanghai') \
+              -t ${{ secrets.DOCKER_USERNAME }}/$image_name:$(TZ=Asia/Shanghai date '+%Y-%m-%d') \
               $dir
           done
       - name: Commit files
