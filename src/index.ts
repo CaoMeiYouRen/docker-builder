@@ -29,7 +29,7 @@ async function buildAndPushDockerImages(versions: string[]) {
     const rootDir = path.join(__dirname, '../docker')
     const projects = await fs.readdir(rootDir)
     const dockerTags: string[] = []
-    const platform = process.env.DOCKER_PLATFORM || 'linux/amd64,linux/arm64,linux/ppc64le'
+    const platform = process.env.DOCKER_PLATFORM || 'linux/amd64,linux/arm64'
     for await (const project of projects) {
         const fullDir = path.join(rootDir, project)
         const imageName = project
