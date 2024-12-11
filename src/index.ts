@@ -137,8 +137,8 @@ if (hasUpdate) {
     const dockerTags = await buildAndPushDockerImages(versions)
 
     const text = `\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
-    const readme = await fs.readFile('README.md', 'utf-8')
+    const readme = await fs.readFile(path.join(__dirname, '../README.md'), 'utf-8')
     const newReadme = readme.replace(/<!-- DOCKER_START -->([\s\S]*?)<!-- DOCKER_END -->/, `<!-- DOCKER_START -->\n${text}\n<!-- DOCKER_END -->`)
-    await fs.writeFile('README.md', newReadme)
+    await fs.writeFile(path.join(__dirname, '../README.md'), newReadme)
     console.log('更新 Docker Tags 成功')
 }
