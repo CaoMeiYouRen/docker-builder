@@ -34,11 +34,16 @@ async function buildAndPushDockerImages(versions: string[]) {
         const fullDir = path.join(rootDir, project)
         const imageName = project
         cd(fullDir)
-        await $`docker buildx build \
-            --push \
-            --platform ${platform} \
-            ${versions.map((version) => `-t ${DOCKER_USERNAME}/${imageName}:${version}`).join(' \\ \n')}
-            .`
+        const flags = [
+            'buildx',
+            'build',
+            '--push',
+            '--platform',
+            platform,
+            ...versions.map((version) => ['-t', `${DOCKER_USERNAME}/${imageName}:${version}`]),
+            '.',
+        ].flat()
+        await $`docker ${flags}`
         versions.forEach((version) => {
             dockerTags.push(`${DOCKER_USERNAME}/${imageName}:${version}`)
         })
