@@ -56,80 +56,25 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Extract Docker metadata
-        id: metadata-alpine-nodejs
-        uses: docker/metadata-action@v5
+      - name: List Docker directories
+        id: list-docker-dirs
+        run: |
+          echo "::set-output name=dirs::$(ls -d ./docker/*/ | tr '\n' ' ')"
+      - name: Build and push Docker images for each directory
         if: ${{ env.HAS_UPDATE == 'true' }}
-        with:
-          # 发布到 docker.io
-          images: |
-            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs
-          tags: |
-            type=raw,value=latest,enable=true
-            type=raw,value=alpine${{ env.ALPINE_LATEST_VERSION }}-node${{ env.NODEJS_LATEST_VERSION }},enable=true
-            type=raw,value=alpine${{ env.ALPINE_MAJOR_VERSION }}-node${{ env.NODEJS_MAJOR_VERSION }},enable=true
-            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v5
-        if: ${{ env.HAS_UPDATE == 'true' }}
-        with:
-          context: ./docker/alpine-nodejs
-          file: ./docker/alpine-nodejs/Dockerfile
-          push: true
-          tags: ${{ steps.metadata-alpine-nodejs.outputs.tags }}
-          labels: ${{ steps.metadata-alpine-nodejs.outputs.labels }}
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
-          # linux/arm/v7,linux/arm/v6,,linux/s390x
-
-      - name: Extract Docker metadata
-        id: metadata-alpine-nodejs-minimize
-        uses: docker/metadata-action@v5
-        if: ${{ env.HAS_UPDATE == 'true' }}
-        with:
-          # 发布到 docker.io
-          images: |
-            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs-minimize
-          tags: |
-            type=raw,value=latest,enable=true
-            type=raw,value=alpine${{ env.ALPINE_LATEST_VERSION }}-node${{ env.NODEJS_LATEST_VERSION }},enable=true
-            type=raw,value=alpine${{ env.ALPINE_MAJOR_VERSION }}-node${{ env.NODEJS_MAJOR_VERSION }},enable=true
-            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v5
-        if: ${{ env.HAS_UPDATE == 'true' }}
-        with:
-          context: ./docker/alpine-nodejs-minimize
-          file: ./docker/alpine-nodejs-minimize/Dockerfile
-          push: true
-          tags: ${{ steps.metadata-alpine-nodejs-minimize.outputs.tags }}
-          labels: ${{ steps.metadata-alpine-nodejs-minimize.outputs.labels }}
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
-          # linux/arm/v7,linux/arm/v6,,linux/s390x
-
-      - name: Extract Docker metadata
-        id: metadata-alpine-nodejs-mongodb-tools
-        uses: docker/metadata-action@v5
-        if: ${{ env.HAS_UPDATE == 'true' }}
-        with:
-          # 发布到 docker.io
-          images: |
-            ${{ secrets.DOCKER_USERNAME }}/alpine-nodejs-mongodb-tools
-          tags: |
-            type=raw,value=latest,enable=true
-            type=raw,value=alpine${{ env.ALPINE_LATEST_VERSION }}-node${{ env.NODEJS_LATEST_VERSION }},enable=true
-            type=raw,value=alpine${{ env.ALPINE_MAJOR_VERSION }}-node${{ env.NODEJS_MAJOR_VERSION }},enable=true
-            type=raw,value={{date 'YYYY-MM-DD' tz='Asia/Shanghai'}},enable=true
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v5
-        if: ${{ env.HAS_UPDATE == 'true' }}
-        with:
-          context: ./docker/alpine-nodejs-mongodb-tools
-          file: ./docker/alpine-nodejs-mongodb-tools/Dockerfile
-          push: true
-          tags: ${{ steps.metadata-alpine-nodejs-mongodb-tools.outputs.tags }}
-          labels: ${{ steps.metadata-alpine-nodejs-mongodb-tools.outputs.labels }}
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
-          # linux/arm/v7,linux/arm/v6,,linux/s390x
+        run: |
+          for dir in ${{ steps.list-docker-dirs.outputs.dirs }}; do
+            image_name=$(basename $dir)
+            echo "Building and pushing image for $image_name"
+            docker buildx build \
+              --push \
+              --platform linux/amd64,linux/arm64,linux/ppc64le \
+              -t ${{ secrets.DOCKER_USERNAME }}/$image_name:latest \
+              -t ${{ secrets.DOCKER_USERNAME }}/$image_name:alpine${{ env.ALPINE_LATEST_VERSION }}-node${{ env.NODEJS_LATEST_VERSION }} \
+              -t ${{ secrets.DOCKER_USERNAME }}/$image_name:alpine${{ env.ALPINE_MAJOR_VERSION }}-node${{ env.NODEJS_MAJOR_VERSION }} \
+              -t ${{ secrets.DOCKER_USERNAME }}/$image_name:$(date '+%Y-%m-%d' -d 'Asia/Shanghai') \
+              $dir
+          done
       - name: Commit files
         id: commit-files
         if: ${{ env.HAS_UPDATE == 'true' }}
