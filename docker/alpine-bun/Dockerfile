@@ -4,7 +4,7 @@ FROM alpine:latest
 RUN  apk update \
     && apk add --no-cache --update curl bash libstdc++ libgcc \
     && curl -fsSL https://bun.sh/install | bash \
-    && ln -s $HOME/.bun/bin/bun /usr/local/bin/bun \
+    && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
     && bun --version \
     && apk del curl bash \
     && rm -rf /var/cache/apk/*
