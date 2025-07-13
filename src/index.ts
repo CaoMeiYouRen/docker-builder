@@ -54,12 +54,20 @@ async function buildAndPushDockerImages(versions: string[]) {
 }
 
 async function getRss(url: string) {
-    return (await fetch(url, {
+    const response = await fetch(url, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
-            Accept: 'application/rss+xml',
+            Accept: 'application/rss+xml, application/xml', // 明确接受 XML 格式
         },
-    })).text()
+    })
+
+    const contentType = response.headers.get('Content-Type')
+    if (!contentType?.includes('xml')) {
+        console.error(`预期 XML 格式，实际返回 ${contentType} 格式`)
+        throw new Error('非 XML 格式响应')
+    }
+
+    return response.text()
 }
 
 async function getTagsByRssHub(sourceRepo: string) {
@@ -72,15 +80,20 @@ async function getTagsByRssHub(sourceRepo: string) {
     url.search = search.toString()
     const rssUrl = url.toString()
 
-    const rssResp = await rssParser.parseString(await getRss(rssUrl))
-    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
-        hasUpdate = true
+    try {
+        const rssText = await getRss(rssUrl)
+        const rssResp = await rssParser.parseString(rssText)
+        if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
+            hasUpdate = true
+        }
+        // guid library/alpine:latest@b26f5cb75a088e449b9dbbbad546a106
+        // tag latest
+        const tags = rssResp.items.map((item) => item.guid?.split('@')?.[0]?.split(':')?.[1])
+        return tags
+    } catch (error) {
+        console.error(`获取 ${sourceRepo} 的 RSS 标签失败:`, error)
+        return []
     }
-    // guid library/alpine:latest@b26f5cb75a088e449b9dbbbad546a106
-    // tag latest
-    const tags = rssResp.items.map((item) => item.guid?.split('@')?.[0]?.split(':')?.[1])
-
-    return tags
 }
 
 async function getPkgsVersion(name: string) {
@@ -92,14 +105,21 @@ async function getPkgsVersion(name: string) {
     const url = new URL(`https://rsshub.cmyr.dev/alpinelinux/pkgs/${name}`)
     url.search = search.toString()
     const rssUrl = url.toString()
-    const rssResp = await rssParser.parseString(await getRss(rssUrl))
-    if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
-        hasUpdate = true
+
+    try {
+        const rssText = await getRss(rssUrl)
+        const rssResp = await rssParser.parseString(rssText)
+        if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
+            hasUpdate = true
+        }
+        // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
+        // version 20.13.1-r0
+        const versions = rssResp.items.map((item) => item.guid?.split('#')?.[1])
+        return versions
+    } catch (error) {
+        console.error(`获取 ${name} 的版本信息失败:`, error)
+        return []
     }
-    // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
-    // version 20.13.1-r0
-    const versions = rssResp.items.map((item) => item.guid?.split('#')?.[1])
-    return versions
 }
 
 const alpineTags = await getTagsByRssHub('library/alpine')
