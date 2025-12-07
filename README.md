@@ -21,21 +21,21 @@
 <!-- DOCKER_START -->
 ```
 caomeiyouren/alpine-bun:latest
-caomeiyouren/alpine-bun:alpine3.22-node24.11
+caomeiyouren/alpine-bun:alpine3.23-node24.11
 caomeiyouren/alpine-bun:alpine3-node24
-caomeiyouren/alpine-bun:2025-12-01
+caomeiyouren/alpine-bun:2025-12-08
 caomeiyouren/alpine-nodejs:latest
-caomeiyouren/alpine-nodejs:alpine3.22-node24.11
+caomeiyouren/alpine-nodejs:alpine3.23-node24.11
 caomeiyouren/alpine-nodejs:alpine3-node24
-caomeiyouren/alpine-nodejs:2025-12-01
+caomeiyouren/alpine-nodejs:2025-12-08
 caomeiyouren/alpine-nodejs-minimize:latest
-caomeiyouren/alpine-nodejs-minimize:alpine3.22-node24.11
+caomeiyouren/alpine-nodejs-minimize:alpine3.23-node24.11
 caomeiyouren/alpine-nodejs-minimize:alpine3-node24
-caomeiyouren/alpine-nodejs-minimize:2025-12-01
+caomeiyouren/alpine-nodejs-minimize:2025-12-08
 caomeiyouren/alpine-nodejs-mongodb-tools:latest
-caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.22-node24.11
+caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.23-node24.11
 caomeiyouren/alpine-nodejs-mongodb-tools:alpine3-node24
-caomeiyouren/alpine-nodejs-mongodb-tools:2025-12-01
+caomeiyouren/alpine-nodejs-mongodb-tools:2025-12-08
 ```
 <!-- DOCKER_END -->
 
