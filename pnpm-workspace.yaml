@@ -1,6 +1,9 @@
 allowBuilds:
   esbuild: true
 
+minimumReleaseAgeExclude:
+  - commitlint-config-cmyr@1.0.1
+
 overrides:
   compare-func: ^2.0.0
 

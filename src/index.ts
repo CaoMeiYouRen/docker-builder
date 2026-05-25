@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename)
 
 const rssParser = new Parser()
 
-const limit = parseInt(process.env.SYNC_LIMIT) || 5
+const limit = parseInt(process.env.SYNC_LIMIT ?? '5', 10) || 5
 // const filterTime = (parseInt(process.env.SYNC_FILTER_TIME) || 2) * 24 * 60 * 60
 
 const DOCKER_USERNAME = process.env.DOCKER_USERNAME || ''
@@ -124,7 +124,12 @@ async function getPkgsVersion(name: string) {
 
 const alpineTags = await getTagsByRssHub('library/alpine')
 
-const alpineLatestVersion = semver.parse(alpineTags.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
+const latestAlpineTag = alpineTags
+    .filter((tag): tag is string => Boolean(semver.valid(tag)))
+    .sort((left, right) => semver.rcompare(left, right))
+    .at(0)
+
+const alpineLatestVersion = latestAlpineTag ? semver.parse(latestAlpineTag) : null
 
 if (!alpineLatestVersion) {
     console.error('获取 Alpine 最新版本失败')
@@ -138,7 +143,12 @@ await $`echo "ALPINE_MAJOR_VERSION=${alpineLatestVersion.major}" >> "$GITHUB_ENV
 
 const nodejsVersions = await getPkgsVersion('nodejs')
 
-const nodejsLatestVersion = semver.parse(nodejsVersions.filter((e) => semver.valid(e)).sort((a, b) => semver.rcompare(a, b)).at(0))
+const latestNodejsVersion = nodejsVersions
+    .filter((version): version is string => Boolean(semver.valid(version)))
+    .sort((left, right) => semver.rcompare(left, right))
+    .at(0)
+
+const nodejsLatestVersion = latestNodejsVersion ? semver.parse(latestNodejsVersion) : null
 
 if (!nodejsLatestVersion) {
     console.error('获取 Node.js 最新版本失败')
