@@ -2,7 +2,7 @@
 import path from 'path'
 import { fileURLToPath } from 'node:url'
 import { exit } from 'node:process'
-import { $, cd, within } from 'zx'
+import { $, cd } from 'zx'
 import Parser from 'rss-parser'
 import fs from 'fs-extra'
 import semver from 'semver'

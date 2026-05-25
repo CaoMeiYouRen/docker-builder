@@ -4,5 +4,5 @@ FROM alpine:latest
 RUN  apk update \
     && apk add --no-cache --update nodejs npm git mongodb-tools \
     && node -v && npm -v && git --version && mongodump --version \
-    && npm i -g pnpm \
+    && npm i -g pnpm@11 \
     && pnpm -v
