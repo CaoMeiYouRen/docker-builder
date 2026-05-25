@@ -1,0 +1,25 @@
+name: Test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: "11"
+      - name: Setup Node.js@lts environment
+        uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run build
