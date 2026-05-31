@@ -83,7 +83,7 @@
     "url": "https://github.com/CaoMeiYouRen/docker-builder/issues"
   },
   "dependencies": {
-    "dayjs": "^1.11.11",
+    "dayjs": "^1.11.21",
     "dotenv": "^17.4.2",
     "fs-extra": "^11.2.0",
     "isomorphic-unfetch": "^4.0.2",
