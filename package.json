@@ -85,7 +85,7 @@
   "dependencies": {
     "dayjs": "^1.11.21",
     "dotenv": "^17.4.2",
-    "fs-extra": "^11.2.0",
+    "fs-extra": "^11.3.6",
     "isomorphic-unfetch": "^4.0.2",
     "lodash-es": "^4.17.21",
     "log4js": "^6.9.1",
