@@ -3,7 +3,6 @@ import path from 'path'
 import { fileURLToPath } from 'node:url'
 import { exit } from 'node:process'
 import { $, cd } from 'zx'
-import Parser from 'rss-parser'
 import fs from 'fs-extra'
 import semver from 'semver'
 import dayjs from 'dayjs'
@@ -16,16 +15,14 @@ dayjs.extend(timezone)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const rssParser = new Parser()
-
-const limit = parseInt(process.env.SYNC_LIMIT ?? '5', 10) || 5
-// const filterTime = (parseInt(process.env.SYNC_FILTER_TIME) || 2) * 24 * 60 * 60
-
 const DOCKER_USERNAME = process.env.DOCKER_USERNAME || ''
+const DRY_RUN = process.env.DRY_RUN === 'true'
+const NODE_IMAGE = process.env.NODE_IMAGE || 'public.ecr.aws/docker/library/node'
+const NODE_INDEX_URL = process.env.NODE_INDEX_URL || 'https://nodejs.org/dist/index.json'
 
 let hasUpdate = false
 
-async function buildAndPushDockerImages(versions: string[]) {
+async function buildAndPushDockerImages(versions: string[], buildArgs: string[]) {
     const rootDir = path.join(__dirname, '../docker')
     const projects = await fs.readdir(rootDir)
     const dockerTags: string[] = []
@@ -40,6 +37,7 @@ async function buildAndPushDockerImages(versions: string[]) {
             '--push',
             '--platform',
             platform,
+            ...buildArgs,
             ...versions.map((version) => ['-t', `${DOCKER_USERNAME}/${imageName}:${version}`]),
             '.',
         ].flat()
@@ -53,122 +51,109 @@ async function buildAndPushDockerImages(versions: string[]) {
     return dockerTags
 }
 
-async function getRss(url: string) {
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
-            Accept: 'application/rss+xml, application/xml', // 明确接受 XML 格式
-        },
-    })
-
-    const contentType = response.headers.get('Content-Type')
-    if (!contentType?.includes('xml')) {
-        console.error(`预期 XML 格式，实际返回 ${contentType} 格式`)
-        throw new Error('非 XML 格式响应')
-    }
-
-    return response.text()
+interface NodeRelease {
+    version: string
+    lts: string | false
 }
 
-async function getTagsByRssHub(sourceRepo: string) {
-    const search = new URLSearchParams({
-        // filter_time: String(filterTime),
-        limit: String(limit),
-        filterout: '',
-    })
-    const url = new URL(`https://rsshub.cmyr.dev/dockerhub/tag/${sourceRepo}`)
-    url.search = search.toString()
-    const rssUrl = url.toString()
-
-    try {
-        const rssText = await getRss(rssUrl)
-        const rssResp = await rssParser.parseString(rssText)
-        if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
-            hasUpdate = true
+async function getLatestLtsNodeRelease() {
+    let lastError: unknown
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const response = await fetch(NODE_INDEX_URL, { signal: AbortSignal.timeout(30_000) })
+            if (!response.ok) {
+                throw new Error(`获取 Node.js 版本索引失败: ${response.status}`)
+            }
+            const releases = await response.json() as NodeRelease[]
+            const latest = releases
+                .filter((release) => release.lts !== false && Boolean(semver.valid(release.version)))
+                .sort((left, right) => semver.rcompare(left.version, right.version))
+                .at(0)
+            if (!latest) {
+                throw new Error('获取 Node.js 最新 LTS 版本失败')
+            }
+            return latest
+        } catch (error) {
+            lastError = error
+            console.warn(`获取 Node.js 版本索引失败（第 ${attempt} 次）:`, error)
         }
-        // guid library/alpine:latest@b26f5cb75a088e449b9dbbbad546a106
-        // tag latest
-        const tags = rssResp.items.map((item) => item.guid?.split('@')?.[0]?.split(':')?.[1])
-        return tags
-    } catch (error) {
-        console.error(`获取 ${sourceRepo} 的 RSS 标签失败:`, error)
-        return []
     }
+    throw lastError instanceof Error ? lastError : new Error('获取 Node.js 最新 LTS 版本失败')
 }
 
-async function getPkgsVersion(name: string) {
-    const search = new URLSearchParams({
-        // filter_time: String(filterTime),
-        limit: String(limit),
-        filterout: '',
-    })
-    const url = new URL(`https://rsshub.cmyr.dev/alpinelinux/pkgs/${name}`)
-    url.search = search.toString()
-    const rssUrl = url.toString()
-
-    try {
-        const rssText = await getRss(rssUrl)
-        const rssResp = await rssParser.parseString(rssText)
-        if (rssResp.items?.[0]?.pubDate && dayjs().diff(rssResp.items?.[0]?.pubDate, 'days', true) < 14) { // 更新时间在 7 天内
-            hasUpdate = true
-        }
-        // guid https://pkgs.alpinelinux.org/package/edge/main/ppc64le/nodejs#20.13.1-r0
-        // version 20.13.1-r0
-        const versions = rssResp.items.map((item) => item.guid?.split('#')?.[1])
-        return versions
-    } catch (error) {
-        console.error(`获取 ${name} 的版本信息失败:`, error)
-        return []
+async function writeGithubEnv(values: Record<string, string | number | boolean>) {
+    const githubEnv = process.env.GITHUB_ENV
+    if (!githubEnv) {
+        return
     }
+    const content = Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n')
+    await fs.appendFile(githubEnv, `${content}\n`)
 }
 
-const alpineTags = await getTagsByRssHub('library/alpine')
+const nodeRelease = await getLatestLtsNodeRelease()
 
-const latestAlpineTag = alpineTags
-    .filter((tag): tag is string => Boolean(semver.valid(tag)))
-    .sort((left, right) => semver.rcompare(left, right))
-    .at(0)
+const NODE_VERSION = nodeRelease.version.replace(/^v/, '')
 
-const alpineLatestVersion = latestAlpineTag ? semver.parse(latestAlpineTag) : null
-
-if (!alpineLatestVersion) {
-    console.error('获取 Alpine 最新版本失败')
-    exit(0)
-}
-
-const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
-
-await $`echo "ALPINE_LATEST_VERSION=${ALPINE_LATEST_VERSION}" >> "$GITHUB_ENV"`
-await $`echo "ALPINE_MAJOR_VERSION=${alpineLatestVersion.major}" >> "$GITHUB_ENV"`
-
-const nodejsVersions = await getPkgsVersion('nodejs')
-
-const latestNodejsVersion = nodejsVersions
-    .filter((version): version is string => Boolean(semver.valid(version)))
-    .sort((left, right) => semver.rcompare(left, right))
-    .at(0)
-
-const nodejsLatestVersion = latestNodejsVersion ? semver.parse(latestNodejsVersion) : null
+const nodejsLatestVersion = semver.parse(NODE_VERSION)
 
 if (!nodejsLatestVersion) {
-    console.error('获取 Node.js 最新版本失败')
-    exit(0)
+    console.error('解析 Node.js 最新 LTS 版本失败')
+    exit(1)
 }
 
 const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersion.minor}`
 
-await $`echo "NODEJS_LATEST_VERSION=${NODEJS_LATEST_VERSION}" >> "$GITHUB_ENV"`
-await $`echo "NODEJS_MAJOR_VERSION=${nodejsLatestVersion.major}" >> "$GITHUB_ENV"`
+const baseImage = `${NODE_IMAGE}:${NODE_VERSION}-alpine`
+const baseDigest = (await $`docker buildx imagetools inspect ${baseImage} --format '{{.Manifest.Digest}}'`).stdout.trim()
 
-await $`echo "HAS_UPDATE=${hasUpdate}" >> "$GITHUB_ENV"`
+if (!baseDigest) {
+    console.error(`获取基础镜像 digest 失败: ${baseImage}`)
+    exit(1)
+}
+
+const alpineRelease = (await $`docker run --rm --entrypoint cat ${baseImage} /etc/alpine-release`).stdout.trim()
+const alpineLatestVersion = semver.parse(alpineRelease)
+
+if (!alpineLatestVersion) {
+    console.error(`解析 Alpine 版本失败: ${alpineRelease}`)
+    exit(1)
+}
+
+const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
+const ALPINE_FULL_VERSION = alpineLatestVersion.version
+
+const readmePath = path.join(__dirname, '../README.md')
+const readme = await fs.readFile(readmePath, 'utf-8')
+const metaMatch = readme.match(/<!-- DOCKER_META node=(\S+) alpine=(\S+) base=(\S+) -->/)
+const hasVersionUpdate = !metaMatch || metaMatch[1] !== NODE_VERSION || metaMatch[2] !== ALPINE_FULL_VERSION || metaMatch[3] !== baseDigest
+
+hasUpdate = hasVersionUpdate
+
+await writeGithubEnv({
+    ALPINE_LATEST_VERSION,
+    ALPINE_MAJOR_VERSION: alpineLatestVersion.major,
+    NODE_VERSION,
+    NODEJS_LATEST_VERSION,
+    NODEJS_MAJOR_VERSION: nodejsLatestVersion.major,
+    HAS_UPDATE: hasUpdate,
+})
 
 if (hasUpdate) {
     const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
-    const dockerTags = await buildAndPushDockerImages(versions)
+    if (DRY_RUN) {
+        console.log(JSON.stringify({ NODE_VERSION, ALPINE_FULL_VERSION, versions }, null, 2))
+        exit(0)
+    }
+    const buildArgs = [
+        '--build-arg', `NODE_VERSION=${NODE_VERSION}`,
+        '--build-arg', `ALPINE_VERSION=${ALPINE_LATEST_VERSION}`,
+        '--build-arg', `NODE_IMAGE=${NODE_IMAGE}`,
+    ]
+    const dockerTags = await buildAndPushDockerImages(versions, buildArgs)
 
-    const text = `\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
-    const readme = await fs.readFile(path.join(__dirname, '../README.md'), 'utf-8')
+    const meta = `<!-- DOCKER_META node=${NODE_VERSION} alpine=${ALPINE_FULL_VERSION} base=${baseDigest} -->`
+    const text = `${meta}\n\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
     const newReadme = readme.replace(/<!-- DOCKER_START -->([\s\S]*?)<!-- DOCKER_END -->/, `<!-- DOCKER_START -->\n${text}\n<!-- DOCKER_END -->`)
-    await fs.writeFile(path.join(__dirname, '../README.md'), newReadme)
+    await fs.writeFile(readmePath, newReadme)
     console.log('更新 Docker Tags 成功')
 }
