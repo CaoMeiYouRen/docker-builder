@@ -19,6 +19,14 @@ const DOCKER_USERNAME = process.env.DOCKER_USERNAME || ''
 const DRY_RUN = process.env.DRY_RUN === 'true'
 const NODE_IMAGE = process.env.NODE_IMAGE || 'public.ecr.aws/docker/library/node'
 const NODE_INDEX_URL = process.env.NODE_INDEX_URL || 'https://nodejs.org/dist/index.json'
+/**
+ * Alpine 基底固定 3.23（musl 1.2.5）。
+ *
+ * Alpine >= 3.24（musl >= 1.2.6）把 pwrite() 改走 pwritev2，在「内核 < 4.6 + libseccomp < 2.3.3」
+ * 的老宿主（CentOS/RHEL 7 等）上会被 Docker seccomp 拦成 EPERM，且 musl 不会回退，导致 PHP
+ * session / SQLite / Node 带 offset 的写入全部失败。门禁与升级路径见 gate/README.md。
+ */
+const ALPINE_VERSION = process.env.ALPINE_VERSION || '3.23'
 
 let hasUpdate = false
 
@@ -103,7 +111,47 @@ if (!nodejsLatestVersion) {
 
 const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersion.minor}`
 
-const baseImage = `${NODE_IMAGE}:${NODE_VERSION}-alpine`
+const baseImage = `${NODE_IMAGE}:${NODE_VERSION}-alpine${ALPINE_VERSION}`
+// bun 镜像直接用 alpine 基底，同样受 musl pwrite() 行为影响（用户可能继续 apk add 其它程序）
+const alpineBaseImage = `alpine:${ALPINE_VERSION}`
+
+/**
+ * 基础镜像不存在时给出可执行的下一步，而不是让 docker build 抛一句 manifest unknown。
+ * 最常见的触发场景：上游还没为新的 Node.js 版本发布 `-alpine3.23` 变体。
+ */
+async function assertBaseImageExists(image: string) {
+    const { exitCode } = await $`docker manifest inspect ${image}`.nothrow()
+    if (exitCode === 0) {
+        return
+    }
+    console.error([
+        `无法读取基础镜像：${image}`,
+        '通常意味着上游尚未为该 Node.js 版本发布 Alpine 3.23 变体（也可能是镜像仓库临时不可用）。可选处理：',
+        '  1. 等待上游补齐 tag 后重跑（Alpine 3.23 支持到 2027-11）',
+        '  2. linux/amd64：改用 nodejs.org 的官方 musl 二进制（node-vX-linux-x64-musl.tar.xz）',
+        '  3. 其它架构：在 Alpine 3.23 上从源码编译 Node.js',
+        '  4. 退回 Alpine 3.24+：需自行承担老宿主 EPERM 风险，并按 gate/README.md 提供运行期自检',
+    ].join('\n'))
+    exit(1)
+}
+
+/**
+ * 发布前门禁：在只把 pwritev2 变成 EPERM 的 seccomp 夹具下真跑一次 pwrite()，
+ * 等价于在 CentOS 7（内核 3.10 + libseccomp 2.3.1）上验证，因此托管 runner 也能拦住回归。
+ */
+async function runMuslPwriteGate(images: string[]) {
+    const gateScript = path.join(__dirname, '../gate/musl-pwrite-gate.sh')
+    for (const image of images) {
+        // stdio: inherit 让门禁输出按真实顺序进入 CI 日志
+        const { exitCode } = await $({ stdio: 'inherit' })`bash ${gateScript} --image ${image}`.nothrow()
+        if (exitCode !== 0) {
+            console.error(`musl-pwrite 门禁未通过：${image}。镜像未构建、未推送。详见 gate/README.md`)
+            exit(1)
+        }
+    }
+}
+
+await assertBaseImageExists(baseImage)
 const baseDigest = (await $`docker buildx imagetools inspect ${baseImage} --format '{{.Manifest.Digest}}'`).stdout.trim()
 
 if (!baseDigest) {
@@ -140,13 +188,14 @@ await writeGithubEnv({
 
 if (hasUpdate) {
     const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
+    await runMuslPwriteGate([baseImage, alpineBaseImage])
     if (DRY_RUN) {
         console.log(JSON.stringify({ NODE_VERSION, ALPINE_FULL_VERSION, versions }, null, 2))
         exit(0)
     }
     const buildArgs = [
         '--build-arg', `NODE_VERSION=${NODE_VERSION}`,
-        '--build-arg', `ALPINE_VERSION=${ALPINE_LATEST_VERSION}`,
+        '--build-arg', `ALPINE_VERSION=${ALPINE_VERSION}`,
         '--build-arg', `NODE_IMAGE=${NODE_IMAGE}`,
     ]
     const dockerTags = await buildAndPushDockerImages(versions, buildArgs)

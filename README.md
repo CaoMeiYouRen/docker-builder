@@ -39,6 +39,12 @@ caomeiyouren/alpine-nodejs-mongodb-tools:2026-10-22
 ```
 <!-- DOCKER_END -->
 
+## 镜像基线
+
+- 基础系统：**Alpine 3.23（musl 1.2.5）**，不使用 `alpine:latest`。
+- 原因：Alpine ≥ 3.24（musl ≥ 1.2.6）把 `pwrite()` 改走 `pwritev2`，在 CentOS/RHEL 7 等「内核 < 4.6 + libseccomp < 2.3.3」的宿主上会被 Docker seccomp 拦成 `EPERM` 且不会回退，表现为 PHP session 丢失、SQLite `disk I/O error`、Node 写文件 `EPERM`。
+- 门禁：构建期版本断言 + 推送前在 seccomp 夹具下真跑一次 `pwrite()` + CI 静态扫描，详见 [gate/README.md](gate/README.md)。
+
 ## 🏠 主页
 
 [https://github.com/CaoMeiYouRen/docker-builder#readme](https://github.com/CaoMeiYouRen/docker-builder#readme)

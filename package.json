@@ -25,6 +25,8 @@
   "scripts": {
     "lint": "cross-env NODE_ENV=production eslint src --fix",
     "typecheck": "tsc --noEmit",
+    "gate": "bash gate/check-alpine-base.sh --fail docker",
+    "gate:image": "bash gate/musl-pwrite-gate.sh",
     "prebuild": "rimraf dist",
     "build": "cross-env NODE_ENV=production tsup",
     "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
