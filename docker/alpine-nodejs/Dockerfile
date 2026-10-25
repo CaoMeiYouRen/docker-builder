@@ -3,7 +3,7 @@ ARG NODE_VERSION=24.22.1
 # 旧 libseccomp」的老宿主上会被 seccomp 拦成 EPERM，PHP session / SQLite / Node 带 offset 的
 # 写入全部失败。EOL 2027-11，之后的升级路径见 gate/README.md。
 ARG ALPINE_VERSION=3.23
-ARG NODE_IMAGE=public.ecr.aws/docker/library/node
+ARG NODE_IMAGE=docker.io/library/node
 
 FROM ${NODE_IMAGE}:${NODE_VERSION}-alpine${ALPINE_VERSION}
 

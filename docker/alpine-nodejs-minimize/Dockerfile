@@ -2,7 +2,7 @@ ARG NODE_VERSION=24.22.1
 # Alpine 固定 3.23（musl 1.2.5）：3.24+ 的 musl 把 pwrite() 改走 pwritev2，在「内核 < 4.6 +
 # 旧 libseccomp」的老宿主上会被 seccomp 拦成 EPERM。EOL 2027-11，后续方案见 gate/README.md。
 ARG ALPINE_VERSION=3.23
-ARG NODE_IMAGE=public.ecr.aws/docker/library/node
+ARG NODE_IMAGE=docker.io/library/node
 
 # 官方只提供 linux-x64-musl 的独立二进制，arm64 必须通过官方多架构镜像获取，
 # 因此这里从官方镜像复制 node，而不是下载 tarball。

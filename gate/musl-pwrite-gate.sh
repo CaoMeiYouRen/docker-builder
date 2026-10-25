@@ -75,11 +75,25 @@ ver_gt() {
 	}'
 }
 
+# 镜像仓库限流（如 ECR public 429）时重试拉取
+pull_image() {
+	local img=$1 attempt=0 delay
+	for delay in 5 20 45; do
+		if docker pull -q "$img" >/dev/null 2>&1; then
+			return 0
+		fi
+		attempt=$((attempt + 1))
+		printf '  [WARN] 拉取 %s 失败（第 %d 次，可能被仓库限流），%ds 后重试\n' "$img" "$attempt" "$delay" >&2
+		sleep "$delay"
+	done
+	docker pull -q "$img" >/dev/null 2>&1
+}
+
 check_image() {
 	local img=$1 info alpine musl probe_result
 
 	if ! docker image inspect "$img" >/dev/null 2>&1; then
-		if ! docker pull -q "$img" >/dev/null 2>&1; then
+		if ! pull_image "$img"; then
 			printf '  [ERROR] 无法拉取镜像 %s\n' "$img" >&2
 			return 2
 		fi
