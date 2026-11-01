@@ -23,8 +23,9 @@ RUN set -eu; \
     case "$musl" in 1.2.[6-9]*|1.[3-9]*|[2-9]*) echo "门禁失败：musl $musl >= 1.2.6，pwrite 走 pwritev2，老宿主会 EPERM（见 gate/README.md）" >&2; exit 1;; esac; \
     echo "musl-pwrite 基线：Alpine $alpine / musl $musl"
 
-# 官方 node 二进制动态依赖 libstdc++ / libgcc
-RUN apk add --no-cache libstdc++ libgcc
+# 官方 node 二进制动态依赖 libstdc++ / libgcc；Node.js 26 起还要 libatomic
+# （官方镜像同样装了 libatomic，缺了会在启动时报 libatomic.so.1 not found）
+RUN apk add --no-cache libstdc++ libgcc libatomic
 
 COPY --from=node-src /usr/local/bin/node /usr/local/bin/node
 COPY --from=license-src /usr/local/LICENSE /usr/local/LICENSE
