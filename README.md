@@ -19,23 +19,24 @@
 ## 当前构建版本
 
 <!-- DOCKER_START -->
+<!-- DOCKER_META node=26.13.0 alpine=3.23.7 base=sha256:e6c03d42b46af3b1e98207e59f06a43cfe5efd3ec4b4d3d9802bddf04f833374 -->
 ```
 caomeiyouren/alpine-bun:latest
-caomeiyouren/alpine-bun:alpine3.24-node24.18
-caomeiyouren/alpine-bun:alpine3-node24
-caomeiyouren/alpine-bun:2026-10-22
+caomeiyouren/alpine-bun:alpine3.23-node26.13
+caomeiyouren/alpine-bun:alpine3-node26
+caomeiyouren/alpine-bun:2026-11-02
 caomeiyouren/alpine-nodejs:latest
-caomeiyouren/alpine-nodejs:alpine3.24-node24.18
-caomeiyouren/alpine-nodejs:alpine3-node24
-caomeiyouren/alpine-nodejs:2026-10-22
+caomeiyouren/alpine-nodejs:alpine3.23-node26.13
+caomeiyouren/alpine-nodejs:alpine3-node26
+caomeiyouren/alpine-nodejs:2026-11-02
 caomeiyouren/alpine-nodejs-minimize:latest
-caomeiyouren/alpine-nodejs-minimize:alpine3.24-node24.18
-caomeiyouren/alpine-nodejs-minimize:alpine3-node24
-caomeiyouren/alpine-nodejs-minimize:2026-10-22
+caomeiyouren/alpine-nodejs-minimize:alpine3.23-node26.13
+caomeiyouren/alpine-nodejs-minimize:alpine3-node26
+caomeiyouren/alpine-nodejs-minimize:2026-11-02
 caomeiyouren/alpine-nodejs-mongodb-tools:latest
-caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.24-node24.18
-caomeiyouren/alpine-nodejs-mongodb-tools:alpine3-node24
-caomeiyouren/alpine-nodejs-mongodb-tools:2026-10-22
+caomeiyouren/alpine-nodejs-mongodb-tools:alpine3.23-node26.13
+caomeiyouren/alpine-nodejs-mongodb-tools:alpine3-node26
+caomeiyouren/alpine-nodejs-mongodb-tools:2026-11-02
 ```
 <!-- DOCKER_END -->
 
