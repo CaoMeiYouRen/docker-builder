@@ -20,6 +20,10 @@ const DOCKER_USERNAME = process.env.DOCKER_USERNAME || ''
 const DRY_RUN = process.env.DRY_RUN === 'true'
 const NODE_IMAGE = process.env.NODE_IMAGE || 'docker.io/library/node'
 const NODE_INDEX_URL = process.env.NODE_INDEX_URL || 'https://nodejs.org/dist/index.json'
+const BUN_RELEASE_URL = process.env.BUN_RELEASE_URL || 'https://api.github.com/repos/oven-sh/bun/releases/latest'
+const BUN_NPM_URL = process.env.BUN_NPM_URL || 'https://registry.npmjs.org/bun/latest'
+/** bun 镜像名：tag 用 bun 自己的版本，而不是 Node.js 版本 */
+const BUN_IMAGE_NAME = 'alpine-bun'
 /**
  * Alpine 基底固定 3.23（musl 1.2.5）。
  *
@@ -31,7 +35,7 @@ const ALPINE_VERSION = process.env.ALPINE_VERSION || '3.23'
 
 let hasUpdate = false
 
-async function buildAndPushDockerImages(versions: string[], buildArgs: string[]) {
+async function buildAndPushDockerImages(resolveVersions: (project: string) => string[], buildArgs: string[]) {
     const rootDir = path.join(__dirname, '../docker')
     const projects = await fs.readdir(rootDir)
     const dockerTags: string[] = []
@@ -39,6 +43,8 @@ async function buildAndPushDockerImages(versions: string[], buildArgs: string[])
     for await (const project of projects) {
         const fullDir = path.join(rootDir, project)
         const imageName = project
+        const versions = resolveVersions(project)
+        const projectBuildArgs = imageName === BUN_IMAGE_NAME ? [...buildArgs, '--build-arg', `BUN_VERSION=${BUN_VERSION}`] : buildArgs
         cd(fullDir)
         const flags = [
             'buildx',
@@ -46,7 +52,7 @@ async function buildAndPushDockerImages(versions: string[], buildArgs: string[])
             '--push',
             '--platform',
             platform,
-            ...buildArgs,
+            ...projectBuildArgs,
             ...versions.map((version) => ['-t', `${DOCKER_USERNAME}/${imageName}:${version}`]),
             '.',
         ].flat()
@@ -65,29 +71,66 @@ interface NodeRelease {
     lts: string | false
 }
 
-async function getLatestLtsNodeRelease() {
+interface BunRelease {
+    tag_name?: string
+}
+
+interface NpmPackageInfo {
+    version?: string
+}
+
+async function fetchJson<T>(url: string, label: string) {
     let lastError: unknown
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const response = await fetch(NODE_INDEX_URL, { signal: AbortSignal.timeout(30_000) })
+            const response = await fetch(url, {
+                headers: { accept: 'application/json', 'user-agent': 'docker-builder' },
+                signal: AbortSignal.timeout(30_000),
+            })
             if (!response.ok) {
-                throw new Error(`获取 Node.js 版本索引失败: ${response.status}`)
+                throw new Error(`${label}失败: ${response.status}`)
             }
-            const releases = await response.json() as NodeRelease[]
-            const latest = releases
-                .filter((release) => release.lts !== false && Boolean(semver.valid(release.version)))
-                .sort((left, right) => semver.rcompare(left.version, right.version))
-                .at(0)
-            if (!latest) {
-                throw new Error('获取 Node.js 最新 LTS 版本失败')
-            }
-            return latest
+            return await response.json() as T
         } catch (error) {
             lastError = error
-            console.warn(`获取 Node.js 版本索引失败（第 ${attempt} 次）:`, error)
+            console.warn(`${label}失败（第 ${attempt} 次）:`, error)
         }
     }
-    throw lastError instanceof Error ? lastError : new Error('获取 Node.js 最新 LTS 版本失败')
+    throw lastError instanceof Error ? lastError : new Error(`${label}失败`)
+}
+
+async function getLatestLtsNodeRelease() {
+    const releases = await fetchJson<NodeRelease[]>(NODE_INDEX_URL, '获取 Node.js 版本索引')
+    const latest = releases
+        .filter((release) => release.lts !== false && Boolean(semver.valid(release.version)))
+        .sort((left, right) => semver.rcompare(left.version, right.version))
+        .at(0)
+    if (!latest) {
+        throw new Error('获取 Node.js 最新 LTS 版本失败')
+    }
+    return latest
+}
+
+/**
+ * bun 镜像 tag 使用 bun 自己的版本：优先 GitHub Release（权威来源），
+ * 共享 runner 被限流时回退到 npm registry（bun 包版本与发布版本一致）。
+ */
+async function getLatestBunVersion() {
+    try {
+        const release = await fetchJson<BunRelease>(BUN_RELEASE_URL, '获取 Bun 版本')
+        const version = release.tag_name?.replace(/^(bun-)?v/, '')
+        if (version && semver.valid(version)) {
+            return version
+        }
+        throw new Error(`解析 Bun 版本失败: ${release.tag_name}`)
+    } catch (error) {
+        console.warn('获取 Bun 版本失败，回退到 npm registry:', error)
+    }
+    const pkg = await fetchJson<NpmPackageInfo>(BUN_NPM_URL, '获取 Bun 版本（npm registry）')
+    if (!pkg.version || !semver.valid(pkg.version)) {
+        throw new Error(`解析 Bun 版本失败: ${pkg.version}`)
+    }
+    return pkg.version
 }
 
 async function writeGithubEnv(values: Record<string, string | number | boolean>) {
@@ -111,6 +154,17 @@ if (!nodejsLatestVersion) {
 }
 
 const NODEJS_LATEST_VERSION = `${nodejsLatestVersion.major}.${nodejsLatestVersion.minor}`
+
+const BUN_VERSION = process.env.BUN_VERSION?.replace(/^v/, '') || await getLatestBunVersion()
+
+const bunLatestVersion = semver.parse(BUN_VERSION)
+
+if (!bunLatestVersion) {
+    console.error(`解析 Bun 版本失败: ${BUN_VERSION}`)
+    exit(1)
+}
+
+const BUN_LATEST_VERSION = `${bunLatestVersion.major}.${bunLatestVersion.minor}`
 
 const baseImage = `${NODE_IMAGE}:${NODE_VERSION}-alpine${ALPINE_VERSION}`
 // bun 镜像直接用 alpine 基底，同样受 musl pwrite() 行为影响（用户可能继续 apk add 其它程序）
@@ -217,10 +271,41 @@ if (!alpineLatestVersion) {
 const ALPINE_LATEST_VERSION = `${alpineLatestVersion.major}.${alpineLatestVersion.minor}`
 const ALPINE_FULL_VERSION = alpineLatestVersion.version
 
+// bun 镜像直接 FROM alpine:${ALPINE_VERSION}，与 Node 镜像的 alpine 补丁号可能不同步，
+// 精确 tag 必须反映 bun 基底的真实版本
+const bunAlpineRelease = await readAlpineRelease(alpineBaseImage)
+const bunAlpineLatestVersion = semver.parse(bunAlpineRelease)
+
+if (!bunAlpineLatestVersion) {
+    console.error(`解析 Alpine 版本失败: ${bunAlpineRelease}`)
+    exit(1)
+}
+
+const BUN_ALPINE_LATEST_VERSION = `${bunAlpineLatestVersion.major}.${bunAlpineLatestVersion.minor}`
+const BUN_ALPINE_FULL_VERSION = bunAlpineLatestVersion.version
+
+const buildDate = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')
+
+const nodeImageVersions = [
+    'latest',
+    `alpine${ALPINE_FULL_VERSION}-node${NODE_VERSION}`,
+    `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`,
+    `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`,
+    buildDate,
+]
+
+const bunImageVersions = [
+    'latest',
+    `alpine${BUN_ALPINE_FULL_VERSION}-bun${BUN_VERSION}`,
+    `alpine${BUN_ALPINE_LATEST_VERSION}-bun${BUN_LATEST_VERSION}`,
+    `alpine${bunAlpineLatestVersion.major}-bun${bunLatestVersion.major}`,
+    buildDate,
+]
+
 const readmePath = path.join(__dirname, '../README.md')
 const readme = await fs.readFile(readmePath, 'utf-8')
-const metaMatch = readme.match(/<!-- DOCKER_META node=(\S+) alpine=(\S+) base=(\S+) -->/)
-const hasVersionUpdate = !metaMatch || metaMatch[1] !== NODE_VERSION || metaMatch[2] !== ALPINE_FULL_VERSION || metaMatch[3] !== baseDigest
+const metaMatch = readme.match(/<!-- DOCKER_META node=(\S+) alpine=(\S+) bunalpine=(\S+) base=(\S+) bun=(\S+) -->/)
+const hasVersionUpdate = !metaMatch || metaMatch[1] !== NODE_VERSION || metaMatch[2] !== ALPINE_FULL_VERSION || metaMatch[3] !== BUN_ALPINE_FULL_VERSION || metaMatch[4] !== baseDigest || metaMatch[5] !== BUN_VERSION
 
 hasUpdate = hasVersionUpdate
 
@@ -230,14 +315,21 @@ await writeGithubEnv({
     NODE_VERSION,
     NODEJS_LATEST_VERSION,
     NODEJS_MAJOR_VERSION: nodejsLatestVersion.major,
+    BUN_VERSION,
     HAS_UPDATE: hasUpdate,
 })
 
 if (hasUpdate) {
-    const versions = ['latest', `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`, `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`, dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')]
+    const versionsByProject = (project: string) => (project === BUN_IMAGE_NAME ? bunImageVersions : nodeImageVersions)
     await runMuslPwriteGate([baseImage, alpineBaseImage])
     if (DRY_RUN) {
-        console.log(JSON.stringify({ NODE_VERSION, ALPINE_FULL_VERSION, versions }, null, 2))
+        console.log(JSON.stringify({
+            NODE_VERSION,
+            ALPINE_FULL_VERSION,
+            BUN_VERSION,
+            BUN_ALPINE_FULL_VERSION,
+            tags: Object.fromEntries((await fs.readdir(path.join(__dirname, '../docker'))).map((project) => [project, versionsByProject(project)])),
+        }, null, 2))
         exit(0)
     }
     const buildArgs = [
@@ -245,9 +337,9 @@ if (hasUpdate) {
         '--build-arg', `ALPINE_VERSION=${ALPINE_VERSION}`,
         '--build-arg', `NODE_IMAGE=${NODE_IMAGE}`,
     ]
-    const dockerTags = await buildAndPushDockerImages(versions, buildArgs)
+    const dockerTags = await buildAndPushDockerImages(versionsByProject, buildArgs)
 
-    const meta = `<!-- DOCKER_META node=${NODE_VERSION} alpine=${ALPINE_FULL_VERSION} base=${baseDigest} -->`
+    const meta = `<!-- DOCKER_META node=${NODE_VERSION} alpine=${ALPINE_FULL_VERSION} bunalpine=${BUN_ALPINE_FULL_VERSION} base=${baseDigest} bun=${BUN_VERSION} -->`
     const text = `${meta}\n\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
     const newReadme = readme.replace(/<!-- DOCKER_START -->([\s\S]*?)<!-- DOCKER_END -->/, `<!-- DOCKER_START -->\n${text}\n<!-- DOCKER_END -->`)
     await fs.writeFile(readmePath, newReadme)

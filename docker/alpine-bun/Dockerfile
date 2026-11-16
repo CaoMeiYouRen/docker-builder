@@ -16,14 +16,24 @@ RUN set -eu; \
 ARG BUN_INSTALL_BIN=/usr/local/bin
 ENV BUN_INSTALL_BIN=${BUN_INSTALL_BIN}
 
+# 由构建脚本传入精确版本，保证 tag（如 alpine3.23.8-bun1.4.4）与实际安装版本一致
+ARG BUN_VERSION=
+
 # 安装bun环境
 RUN  apk update \
     && apk add --no-cache --update curl bash libstdc++ libgcc \
-    && curl -fsSL https://bun.sh/install | bash \
+    && if [ -n "${BUN_VERSION}" ]; then \
+        curl -fsSL https://bun.sh/install | bash -s -- "bun-v${BUN_VERSION}"; \
+    else \
+        curl -fsSL https://bun.sh/install | bash; \
+    fi \
     && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
     && ln -s /usr/local/bin/bun /usr/local/bin/bunx \
     && which bun \
     && which bunx \
     && bun --version \
+    && if [ -n "${BUN_VERSION}" ] && [ "$(bun --version)" != "${BUN_VERSION}" ]; then \
+        echo "bun 版本不符：期望 ${BUN_VERSION}，实际 $(bun --version)" >&2; exit 1; \
+    fi \
     && apk del curl bash \
     && rm -rf /var/cache/apk/*
