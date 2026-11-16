@@ -4,8 +4,8 @@
 /**
  * 真实调用一次带 offset 的 write（Node 走 libc pwrite）。
  *
- * musl >= 1.2.6 的 pwrite() 先发 pwritev2；在老内核 + 旧 libseccomp 的宿主上会被
- * seccomp 拦成 EPERM，musl 不会回退 → 这里会抛 EPERM。
+ * musl >= 1.2.6 的 pwrite() 先发 pwritev2；在 seccomp 未放行 pwritev2 的宿主上会被
+ * 拦成 EPERM（典型是老内核 + 旧 libseccomp），musl 不会回退 → 这里会抛 EPERM。
  *
  * 由 musl-pwrite-gate.sh 在 gate/seccomp/pwritev2-eperm.json 夹具下执行，
  * 因此在任何新内核的 CI runner 上都能复现老宿主的行为。

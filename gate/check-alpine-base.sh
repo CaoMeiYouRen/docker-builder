@@ -2,9 +2,9 @@
 # =============================================================================
 # check-alpine-base.sh — CI 静态检查：Dockerfile 里是否用了 Alpine >= 3.24
 #
-# 背景：Alpine 3.24 起 musl 1.2.6 的 pwrite() 改走 pwritev2，在「老内核 + 旧
-#       libseccomp」（CentOS/RHEL 7 等）上会被 seccomp 拦成 EPERM，导致 PHP
-#       session / SQLite / 各类写文件操作失败。它不报编译错误，只在运行期炸。
+# 背景：Alpine 3.24 起 musl 1.2.6 的 pwrite() 改走 pwritev2，在 seccomp 未放行
+#       pwritev2 的宿主上会被拦成 EPERM（典型是 libseccomp < 2.3.2 的 CentOS/RHEL 7），
+#       导致 PHP session / SQLite / 各类写文件操作失败。它不报编译错误，只在运行期炸。
 #
 # 用法：
 #   ./check-alpine-base.sh .                  # 扫当前目录（默认 warn，不失败）
@@ -87,7 +87,7 @@ classify() {
 
 	if [ -n "$ver" ]; then
 		if ver_ge "$ver" "3.24"; then
-			printf 'ERROR\tAlpine %s（musl 1.2.6）：pwrite 走 pwritev2，老内核 + 旧 libseccomp 上会被 seccomp 拦成 EPERM' "$ver"
+			printf 'ERROR\tAlpine %s（musl 1.2.6）：pwrite 走 pwritev2，seccomp 未放行时会拦成 EPERM（老宿主常见）' "$ver"
 		else
 			printf 'INFO\tAlpine %s（musl <= 1.2.5）：pwrite 走 pwrite64，不受该问题影响' "$ver"
 		fi

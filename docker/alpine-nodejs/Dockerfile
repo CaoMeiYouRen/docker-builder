@@ -1,7 +1,7 @@
 ARG NODE_VERSION=24.22.1
-# Alpine 固定 3.23（musl 1.2.5）：3.24+ 的 musl 把 pwrite() 改走 pwritev2，在「内核 < 4.6 +
-# 旧 libseccomp」的老宿主上会被 seccomp 拦成 EPERM，PHP session / SQLite / Node 带 offset 的
-# 写入全部失败。EOL 2027-11，之后的升级路径见 gate/README.md。
+# Alpine 固定 3.23（musl 1.2.5）：3.24+ 的 musl 把 pwrite() 改走 pwritev2，在 seccomp 未放行
+# pwritev2 的宿主上会被拦成 EPERM（典型是 libseccomp < 2.3.2 的老宿主），PHP session /
+# SQLite / Node 带 offset 的写入全部失败。EOL 2027-11，之后的升级路径见 gate/README.md。
 ARG ALPINE_VERSION=3.23
 ARG NODE_IMAGE=docker.io/library/node
 

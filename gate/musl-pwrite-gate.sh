@@ -2,10 +2,10 @@
 # =============================================================================
 # musl-pwrite-gate.sh — 发布前门禁：镜像的 Alpine/musl 版本 + 真实 pwrite() 探测
 #
-# 背景：Alpine >= 3.24（musl >= 1.2.6）把 pwrite() 改走 pwritev2。在「内核 < 4.6 +
-#       libseccomp < 2.3.3」（CentOS/RHEL 7 等）的宿主上，Docker 的 seccomp 白名单
-#       不认识这个系统调用 → 直接返回 EPERM（而不是 ENOSYS），musl 不会回退到
-#       pwrite64，于是所有带 offset 的写入都失败。
+# 背景：Alpine >= 3.24（musl >= 1.2.6）把 pwrite() 改走 pwritev2。在 seccomp 过滤器
+#       没有放行 pwritev2 的宿主上（典型是「内核 < 4.6 + libseccomp < 2.3.2」的
+#       CentOS/RHEL 7），会被直接拦成 EPERM（而不是 ENOSYS / EOPNOTSUPP），musl 不会
+#       回退到 pwrite64，于是所有带 offset 的写入都失败。与 Docker 主版本基本无关。
 #       典型症状：PHP session 丢失、SQLite `disk I/O error`、Node `EPERM`。
 #
 # 判定方式：不猜宿主内核，直接在 seccomp 夹具（seccomp/pwritev2-eperm.json）下跑一次
@@ -122,12 +122,12 @@ check_image() {
 	# Alpine 只比较 major.minor（3.23.7 < 3.24）
 	alpine_mm=$(printf '%s' "$alpine" | cut -d. -f1-2)
 	if [ -n "$alpine_mm" ] && ver_gt "$alpine_mm" "$MAX_ALPINE"; then
-		printf '  [FAIL] %s Alpine %s > %s：musl 的 pwrite 走 pwritev2，老宿主会被 seccomp 拦成 EPERM\n' "$img" "$alpine" "$MAX_ALPINE" >&2
+		printf '  [FAIL] %s Alpine %s > %s：musl 的 pwrite 走 pwritev2，seccomp 未放行 pwritev2 的宿主会拦成 EPERM\n' "$img" "$alpine" "$MAX_ALPINE" >&2
 		return 1
 	fi
 
 	if ver_gt "$musl" "$MAX_MUSL"; then
-		printf '  [FAIL] %s musl %s > %s：pwrite 走 pwritev2，老宿主会被 seccomp 拦成 EPERM\n' "$img" "$musl" "$MAX_MUSL" >&2
+		printf '  [FAIL] %s musl %s > %s：pwrite 走 pwritev2，seccomp 未放行 pwritev2 的宿主会拦成 EPERM\n' "$img" "$musl" "$MAX_MUSL" >&2
 		return 1
 	fi
 
@@ -167,7 +167,7 @@ done
 
 if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
 	printf 'musl-pwrite-gate: 未通过（不兼容 %d / 无法判定 %d）\n' "$FAILURES" "$ERRORS" >&2
-	printf '  说明：Alpine >= 3.24（musl >= 1.2.6）的镜像在 CentOS/RHEL 7 等老宿主上会写失败。\n' >&2
+	printf '  说明：Alpine >= 3.24（musl >= 1.2.6）的镜像在 seccomp 未放行 pwritev2 的宿主（如 CentOS/RHEL 7）上会写失败。\n' >&2
 	printf '        请改用 Alpine 3.23 基底，或参考 gate/README.md 的替代方案。\n' >&2
 	[ "$ERRORS" -gt 0 ] && exit 2
 	exit 1

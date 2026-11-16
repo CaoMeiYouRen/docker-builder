@@ -27,9 +27,10 @@ const BUN_IMAGE_NAME = 'alpine-bun'
 /**
  * Alpine 基底固定 3.23（musl 1.2.5）。
  *
- * Alpine >= 3.24（musl >= 1.2.6）把 pwrite() 改走 pwritev2，在「内核 < 4.6 + libseccomp < 2.3.3」
- * 的老宿主（CentOS/RHEL 7 等）上会被 Docker seccomp 拦成 EPERM，且 musl 不会回退，导致 PHP
- * session / SQLite / Node 带 offset 的写入全部失败。门禁与升级路径见 gate/README.md。
+ * Alpine >= 3.24（musl >= 1.2.6）把 pwrite() 改走 pwritev2，在 seccomp 过滤器未放行 pwritev2
+ * 的宿主上会被拦成 EPERM，且 musl 不会回退（典型是 libseccomp < 2.3.2 的 CentOS/RHEL 7），
+ * 导致 PHP session / SQLite / Node 带 offset 的写入全部失败。与 Docker 主版本基本无关，
+ * 门禁与升级路径见 gate/README.md。
  */
 const ALPINE_VERSION = process.env.ALPINE_VERSION || '3.23'
 
