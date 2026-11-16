@@ -287,8 +287,16 @@ const BUN_ALPINE_FULL_VERSION = bunAlpineLatestVersion.version
 
 const buildDate = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD')
 
+/**
+ * tag 方案版本：调整下面 nodeImageVersions / bunImageVersions 的 tag 集合时 +1，
+ * 让下一次定时任务即使上游版本没变也会重建并刷新 README（hasUpdate 默认为 false）。
+ */
+const TAG_SCHEME_VERSION = 2
+
 const nodeImageVersions = [
     'latest',
+    // Dependabot 可解析的别名（版本在前、Alpine 只锁主.次）：Node 补丁/次要升级能自动开 PR
+    `${NODE_VERSION}-alpine${ALPINE_LATEST_VERSION}`,
     `alpine${ALPINE_FULL_VERSION}-node${NODE_VERSION}`,
     `alpine${ALPINE_LATEST_VERSION}-node${NODEJS_LATEST_VERSION}`,
     `alpine${alpineLatestVersion.major}-node${nodejsLatestVersion.major}`,
@@ -297,6 +305,8 @@ const nodeImageVersions = [
 
 const bunImageVersions = [
     'latest',
+    // 同上：bun 版本在前，Alpine 只锁主.次
+    `${BUN_VERSION}-alpine${BUN_ALPINE_LATEST_VERSION}`,
     `alpine${BUN_ALPINE_FULL_VERSION}-bun${BUN_VERSION}`,
     `alpine${BUN_ALPINE_LATEST_VERSION}-bun${BUN_LATEST_VERSION}`,
     `alpine${bunAlpineLatestVersion.major}-bun${bunLatestVersion.major}`,
@@ -305,8 +315,8 @@ const bunImageVersions = [
 
 const readmePath = path.join(__dirname, '../README.md')
 const readme = await fs.readFile(readmePath, 'utf-8')
-const metaMatch = readme.match(/<!-- DOCKER_META node=(\S+) alpine=(\S+) bunalpine=(\S+) base=(\S+) bun=(\S+) -->/)
-const hasVersionUpdate = !metaMatch || metaMatch[1] !== NODE_VERSION || metaMatch[2] !== ALPINE_FULL_VERSION || metaMatch[3] !== BUN_ALPINE_FULL_VERSION || metaMatch[4] !== baseDigest || metaMatch[5] !== BUN_VERSION
+const metaMatch = readme.match(/<!-- DOCKER_META node=(\S+) alpine=(\S+) bunalpine=(\S+) base=(\S+) bun=(\S+) tags=(\d+) -->/)
+const hasVersionUpdate = !metaMatch || metaMatch[1] !== NODE_VERSION || metaMatch[2] !== ALPINE_FULL_VERSION || metaMatch[3] !== BUN_ALPINE_FULL_VERSION || metaMatch[4] !== baseDigest || metaMatch[5] !== BUN_VERSION || metaMatch[6] !== String(TAG_SCHEME_VERSION)
 
 hasUpdate = hasVersionUpdate
 
@@ -340,7 +350,7 @@ if (hasUpdate) {
     ]
     const dockerTags = await buildAndPushDockerImages(versionsByProject, buildArgs)
 
-    const meta = `<!-- DOCKER_META node=${NODE_VERSION} alpine=${ALPINE_FULL_VERSION} bunalpine=${BUN_ALPINE_FULL_VERSION} base=${baseDigest} bun=${BUN_VERSION} -->`
+    const meta = `<!-- DOCKER_META node=${NODE_VERSION} alpine=${ALPINE_FULL_VERSION} bunalpine=${BUN_ALPINE_FULL_VERSION} base=${baseDigest} bun=${BUN_VERSION} tags=${TAG_SCHEME_VERSION} -->`
     const text = `${meta}\n\`\`\`\n${dockerTags.join('\n')}\n\`\`\``
     const newReadme = readme.replace(/<!-- DOCKER_START -->([\s\S]*?)<!-- DOCKER_END -->/, `<!-- DOCKER_START -->\n${text}\n<!-- DOCKER_END -->`)
     await fs.writeFile(readmePath, newReadme)

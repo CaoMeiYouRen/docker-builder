@@ -50,6 +50,27 @@ caomeiyouren/alpine-nodejs-mongodb-tools:2026-11-16
 - 原因：Alpine ≥ 3.24（musl ≥ 1.2.6）把 `pwrite()` 改走 `pwritev2`，在 seccomp 过滤器未放行 `pwritev2` 的宿主上会被拦成 `EPERM` 且不会回退（典型是 libseccomp < 2.3.2 的 CentOS/RHEL 7，与 Docker 主版本基本无关），表现为 PHP session 丢失、SQLite `disk I/O error`、Node 写文件 `EPERM`。
 - 门禁：构建期版本断言 + 推送前在 seccomp 夹具下真跑一次 `pwrite()` + CI 静态扫描，详见 [gate/README.md](gate/README.md)。
 
+## 镜像标签
+
+同一个镜像会发布多组 tag，按用途选择：
+
+| tag 形态 | 示例 | 用途 |
+|---|---|---|
+| `{node}-alpine{alpine 主.次}` | `26.13.1-alpine3.23` | **下游自动跟版**：Dependabot 的 docker 生态可解析，Node 补丁/次要升级会自动开 PR；Alpine 固定在 3.23 |
+| `alpine{alpine 完整}-node{node 完整}` | `alpine3.23.8-node26.13.1` | 精确、可复现；双版本 tag 里没有单独的版本号，Dependabot 无法解析，只能手工跟 |
+| `alpine{alpine 主.次}-node{node 主.次}` | `alpine3.23-node26.13` | 可读的浮动 tag；Dependabot 无法解析 |
+| `alpine{alpine 主}-node{node 主}` | `alpine3-node26` | 大版本浮动；Dependabot 无法解析 |
+| `YYYY-MM-DD` | `2026-11-16` | 当日构建快照；不带版本语义，不作为下游部署基准 |
+| `latest` | `latest` | 最新构建；Dependabot 无法解析 |
+
+bun 镜像同规则，把 `node` 换成 `bun`，例如 `1.3.4-alpine3.23`。
+
+Dependabot 只会更新「tag 中能提取出一个版本、且 prefix/suffix 一致」的镜像：
+
+- 下游需要自动跟版时引用 `{node}-alpine{alpine 主.次}`。Alpine 小版本变化会改变 suffix，因此不会被自动带到 3.24，与 musl pwrite 门禁保持一致。
+- 该别名是浮动 tag：Alpine 补丁更新时会重新指向同一个 tag（tag 名不变，Dependabot 不会为此开 PR，正常拉取即可拿到新 digest）。
+- 需要逐个补丁可复现、审计时引用精确 tag。
+
 ## 🏠 主页
 
 [https://github.com/CaoMeiYouRen/docker-builder#readme](https://github.com/CaoMeiYouRen/docker-builder#readme)
